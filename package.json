@@ -1,0 +1,42 @@
+{
+  "name": "@realmkit/cli",
+  "version": "0.1.0",
+  "description": "RealmKit CLI - Extract and create realms from existing projects",
+  "main": "dist/index.js",
+  "bin": {
+    "realmkit": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/cli.ts",
+    "test": "jest",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "realm",
+    "saas",
+    "template",
+    "boilerplate",
+    "cli"
+  ],
+  "author": "RealmKit Team",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.0.0",
+    "yaml": "^2.3.0",
+    "chalk": "^4.1.2",
+    "inquirer": "^9.2.0",
+    "ora": "^5.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/inquirer": "^9.0.0",
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
