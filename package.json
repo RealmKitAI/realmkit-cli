@@ -22,19 +22,21 @@
   "author": "RealmKit Team",
   "license": "MIT",
   "dependencies": {
-    "commander": "^11.0.0",
-    "yaml": "^2.3.0",
+    "@types/node-fetch": "^2.6.12",
     "chalk": "^4.1.2",
+    "commander": "^11.0.0",
     "inquirer": "^9.2.0",
-    "ora": "^5.4.1"
+    "node-fetch": "^3.3.2",
+    "ora": "^5.4.1",
+    "yaml": "^2.3.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
     "@types/inquirer": "^9.0.0",
-    "typescript": "^5.0.0",
-    "ts-node": "^10.9.0",
+    "@types/jest": "^29.0.0",
+    "@types/node": "^20.0.0",
     "jest": "^29.0.0",
-    "@types/jest": "^29.0.0"
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
   },
   "engines": {
     "node": ">=18.0.0"

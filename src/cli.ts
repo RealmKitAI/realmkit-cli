@@ -6,6 +6,7 @@ import { extractCommand } from './commands/extract'
 import { createCommand } from './commands/create'
 import { listCommand } from './commands/list'
 import { initCommand } from './commands/init'
+import { configCommand } from './commands/config'
 
 const program = new Command()
 
@@ -56,6 +57,15 @@ program
   .description('Initialize RealmKit in the current project')
   .option('-f, --force', 'overwrite existing configuration')
   .action(initCommand)
+
+program
+  .command('config')
+  .description('Manage RealmKit CLI configuration')
+  .argument('[key]', 'configuration key to get/set')
+  .argument('[value]', 'value to set (omit to get current value)')
+  .option('--list', 'list all configuration')
+  .option('--reset', 'reset configuration to defaults')
+  .action(configCommand)
 
 // Handle unknown commands
 program.on('command:*', () => {

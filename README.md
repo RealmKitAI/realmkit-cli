@@ -34,30 +34,107 @@ npm run dev create ./extracted-realm my-new-project
 
 ## 🔧 Installation
 
-### Development Setup
+### For Development (Local)
 
 1. **Clone and install dependencies:**
    ```bash
-   cd realmkit-cli
+   cd /path/to/realmkit-cli
    npm install
-   ```
-
-2. **Build the CLI:**
-   ```bash
    npm run build
    ```
 
-3. **Link for global usage (optional):**
+2. **Install globally for local development:**
    ```bash
-   npm link
-   realmkit --help
+   npm install -g .
    ```
+
+3. **Configure for local development:**
+   ```bash
+   # Set your local RealmKit Hub URL
+   realmkit config hubUrl http://localhost:3000
+   
+   # Verify configuration
+   realmkit config --list
+   ```
+
+4. **Alternative: Use environment variables:**
+   ```bash
+   export REALMKIT_HUB_URL="http://localhost:3000"
+   realmkit create namespace/realm-name my-project
+   ```
+
+### For Production
+
+```bash
+npm install -g @realmkit/cli
+```
 
 ### Requirements
 
 - **Node.js**: >= 18.0.0
 - **npm**: >= 8.0.0
 - **TypeScript**: ^5.0.0
+
+## 🔧 Configuration
+
+The CLI supports configuration through:
+
+1. **Config file** (`~/.realmkit/config.json`)
+2. **Environment variables** (override config file)
+3. **Command line** (`realmkit config` command)
+
+### Available Configuration Keys
+
+- `hubUrl` - RealmKit Hub URL (default: https://realmkit.com)
+- `token` - Authentication token for private realms
+- `defaultNamespace` - Default namespace for realm lookups
+- `timeout` - Request timeout in milliseconds (default: 30000)
+
+### Configuration Commands
+
+```bash
+# List all configuration
+realmkit config --list
+
+# Get specific value
+realmkit config hubUrl
+
+# Set configuration value
+realmkit config hubUrl http://localhost:3000
+realmkit config token your-auth-token
+
+# Reset to defaults
+realmkit config --reset
+```
+
+### Environment Variables
+
+Environment variables take precedence over config file:
+
+- `REALMKIT_HUB_URL` - Hub URL
+- `REALMKIT_TOKEN` - Authentication token
+- `REALMKIT_DEFAULT_NAMESPACE` - Default namespace
+- `REALMKIT_TIMEOUT` - Request timeout
+
+## 🛠️ Development Setup for RealmKit Hub
+
+If you're developing RealmKit locally:
+
+1. **Start your RealmKit Hub:**
+   ```bash
+   cd /path/to/realmkit-hub
+   npm run dev  # Usually runs on http://localhost:3000
+   ```
+
+2. **Configure CLI for local development:**
+   ```bash
+   realmkit config hubUrl http://localhost:3000
+   ```
+
+3. **Test the connection:**
+   ```bash
+   realmkit list  # Should connect to your local hub
+   ```
 
 ## 📚 Commands
 
@@ -385,6 +462,44 @@ realmkit:
   version: "0.1.0"
   initialized: "2024-01-01T00:00:00.000Z"
 ```
+
+## 🚦 Troubleshooting
+
+### "Realm not found" Error
+
+If you get `❌ Realm not found: saas-starter`, try:
+
+1. **Use full namespace:**
+   ```bash
+   realmkit create realmkit-team/saas-starter my-app
+   ```
+
+2. **Check your hub URL:**
+   ```bash
+   realmkit config hubUrl
+   ```
+
+3. **Verify hub is running:**
+   ```bash
+   curl http://localhost:3000/api/realms
+   ```
+
+### Connection Issues
+
+1. **Check configuration:**
+   ```bash
+   realmkit config --list
+   ```
+
+2. **Test with environment variable:**
+   ```bash
+   REALMKIT_HUB_URL=http://localhost:3000 realmkit create namespace/realm my-app
+   ```
+
+3. **Verify hub API is accessible:**
+   ```bash
+   curl http://localhost:3000/api/realms
+   ```
 
 ## 🚦 Error Handling
 

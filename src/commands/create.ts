@@ -3,7 +3,9 @@ import fs from 'fs'
 import chalk from 'chalk'
 import ora from 'ora'
 import inquirer from 'inquirer'
+import fetch from 'node-fetch'
 import { ProjectCreator } from '../lib/project-creator'
+import { getConfig } from './config'
 
 interface CreateOptions {
   install: boolean
@@ -16,141 +18,321 @@ export async function createCommand(realmPath: string, projectName: string, outp
   console.log(chalk.blue('🚀 RealmKit Project Creation'))
   console.log('')
   
-  const resolvedRealmPath = path.resolve(realmPath)
-  const projectPath = path.join(outputDir, projectName)
-  const resolvedProjectPath = path.resolve(projectPath)
+  const config = getConfig()
+  // Create project in current directory, not in outputDir/projectName
+  const projectPath = path.resolve(projectName)
+  const resolvedProjectPath = projectPath
   
-  console.log(`📦 Realm: ${chalk.cyan(resolvedRealmPath)}`)
+  console.log(`📦 Realm: ${chalk.cyan(realmPath)}`)
   console.log(`📂 Project: ${chalk.cyan(projectName)}`)
   console.log(`📁 Output: ${chalk.cyan(resolvedProjectPath)}`)
   console.log('')
   
-  // Check if realm exists (try both locations)
-  let realmManifestPath = path.join(resolvedRealmPath, 'realm.yml')
-  if (!fs.existsSync(realmManifestPath)) {
-    realmManifestPath = path.join(resolvedRealmPath, '.realmkit', 'realm.yml')
-  }
-  if (!fs.existsSync(realmManifestPath)) {
-    console.error(chalk.red('❌ Realm not found:'), realmManifestPath)
+  // Check if this is a namespace/realm format (remote) or local path
+  let realmManifestPath: string
+  let manifest: any
+  let isRemoteRealm = false
+  
+  // Check if this is a local directory first
+  const resolvedRealmPath = path.resolve(realmPath)
+  const localRealmExists = fs.existsSync(resolvedRealmPath) && fs.statSync(resolvedRealmPath).isDirectory()
+  
+  if (localRealmExists) {
+    // Local realm directory found
+    isRemoteRealm = false
+    console.log(chalk.blue('📁 Using local realm...'))
+    
+    // Check for realm.yml
+    realmManifestPath = path.join(resolvedRealmPath, 'realm.yml')
+    if (!fs.existsSync(realmManifestPath)) {
+      realmManifestPath = path.join(resolvedRealmPath, '.realmkit', 'realm.yml')
+    }
+    if (!fs.existsSync(realmManifestPath)) {
+      console.error(chalk.red('❌ Realm manifest not found:'), realmManifestPath)
+      console.log('')
+      console.log(chalk.gray('Expected: realm.yml or .realmkit/realm.yml'))
+      process.exit(1)
+    }
+    
+    // Load local manifest
+    const yaml = require('yaml')
+    const manifestContent = fs.readFileSync(realmManifestPath, 'utf8')
+    manifest = yaml.parse(manifestContent)
+    console.log(chalk.green('✅ Realm loaded successfully!'))
+  } else if (realmPath.includes('/') && !path.isAbsolute(realmPath) && !realmPath.startsWith('.')) {
+    // This looks like a namespace/realm format - fetch from hub
+    isRemoteRealm = true
+    console.log(chalk.blue('🌐 Fetching realm from RealmKit Hub...'))
+    
+    try {
+      // Make API call to hub to get realm data
+      const hubUrl = config.hubUrl
+      const response = await fetch(`${hubUrl}/api/realms/${realmPath}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action: 'download' })
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+      
+      const data = await response.json() as any
+      
+      if (!data.success || !data.realm) {
+        throw new Error('Invalid response from hub')
+      }
+      
+      manifest = data.realm.manifest
+      console.log(chalk.green('✅ Realm fetched successfully!'))
+    } catch (error) {
+      console.error(chalk.red('❌ Failed to fetch realm from hub:'), error)
+      console.log('')
+      console.log(chalk.gray('Make sure the realm exists and you have access to it.'))
+      console.log(chalk.gray('Hub URL:'), config.hubUrl)
+      process.exit(1)
+    }
+  } else {
+    // Local realm path that doesn't exist
+    console.error(chalk.red('❌ Realm not found:'), realmPath)
     console.log('')
-    console.log(chalk.gray('Available realms:'))
-    // TODO: List available realms
+    console.log(chalk.gray('Available options:'))
+    console.log(chalk.gray('  • Use a namespace/realm format: realmkit-team/saas-starter'))
+    console.log(chalk.gray('  • Use a local path to a realm directory'))
     process.exit(1)
   }
   
-  // Load realm manifest to get available features
-  const yaml = require('yaml')
-  const manifestContent = fs.readFileSync(realmManifestPath, 'utf8')
-  const manifest = yaml.parse(manifestContent)
-  
-  // Determine enabled features
+  // Use all features by default (simplified UX)
   const availableFeatures = manifest.features?.map((f: any) => f.id) || []
-  let enabledFeatures = [...availableFeatures] // Start with all features
+  const enabledFeatures = [...availableFeatures]
   
-  // Apply feature options from command line
-  if (options.features) {
-    enabledFeatures = options.features.split(',').map(f => f.trim())
-  }
-  
-  // Handle --no-<feature> options
-  for (const [key, value] of Object.entries(options)) {
-    if (key.startsWith('no') && value === false) {
-      const feature = key.substring(2).toLowerCase()
-      enabledFeatures = enabledFeatures.filter(f => f !== feature)
-    }
-  }
-  
-  // Interactive feature selection if none specified
-  if (!options.features && availableFeatures.length > 0) {
-    const { selectedFeatures } = await inquirer.prompt([
-      {
-        type: 'checkbox',
-        name: 'selectedFeatures',
-        message: 'Select features to include:',
-        choices: availableFeatures.map((feature: string) => ({
-          name: feature,
-          value: feature,
-          checked: true // Default to all enabled
-        })),
-        validate: (selected: string[]) => {
-          if (selected.length === 0) return 'Please select at least one feature'
-          return true
-        }
-      }
-    ])
-    enabledFeatures = selectedFeatures
-  }
-  
-  // Collect required variables
-  const requiredVars = manifest.variables?.filter((v: any) => v.required) || []
+  // Set up basic project variables
   const variables: Record<string, any> = {
     PROJECT_NAME: projectName,
     PROJECT_DESCRIPTION: `A ${projectName} application`
   }
   
-  // Prompt for additional required variables
-  if (requiredVars.length > 0) {
-    console.log(chalk.bold('📝 Configuration:'))
-    
-    for (const variable of requiredVars) {
-      if (variables[variable.name]) continue // Skip if already set
-      
-      const { value } = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'value',
-          message: `${variable.description}:`,
-          default: variable.defaultValue,
-          validate: (input: string) => {
-            if (!input.trim()) return `${variable.name} is required`
-            return true
-          }
-        }
-      ])
-      variables[variable.name] = value
-    }
-    console.log('')
-  }
-  
-  // Confirm creation
-  console.log(chalk.bold('🎯 Project Configuration:'))
+  console.log(chalk.bold('🎯 Creating Project:'))
   console.log(`   ${chalk.gray('Name:')} ${projectName}`)
   console.log(`   ${chalk.gray('Realm:')} ${manifest.name} v${manifest.version}`)
-  console.log(`   ${chalk.gray('Features:')} ${enabledFeatures.join(', ')}`)
-  console.log(`   ${chalk.gray('Install deps:')} ${options.install ? 'Yes' : 'No'}`)
-  console.log(`   ${chalk.gray('Initialize git:')} ${options.git ? 'Yes' : 'No'}`)
+  console.log(`   ${chalk.gray('Features:')} All included`)
   console.log('')
-  
-  const { confirm } = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'confirm',
-      message: 'Create project with these settings?',
-      default: true
-    }
-  ])
-  
-  if (!confirm) {
-    console.log(chalk.yellow('❌ Project creation cancelled'))
-    return
-  }
   
   // Create project
   const spinner = ora('Creating project...').start()
   
   try {
-    const config = {
-      projectName,
-      realmPath: resolvedRealmPath,
-      outputPath: resolvedProjectPath,
-      variables,
-      enabledFeatures
+    // Create project directory
+    if (!fs.existsSync(resolvedProjectPath)) {
+      fs.mkdirSync(resolvedProjectPath, { recursive: true })
     }
     
-    const creator = new ProjectCreator(config)
-    
-    spinner.text = 'Setting up project structure...'
-    await creator.create()
+    if (isRemoteRealm) {
+      // Try to download actual realm files from hub
+      spinner.text = 'Downloading realm files...'
+      
+      try {
+        // Make API call to get download URL
+        const hubUrl = config.hubUrl
+        const downloadResponse = await fetch(`${hubUrl}/api/realms/${realmPath}/files`, {
+          method: 'GET'
+        })
+        
+        if (!downloadResponse.ok) {
+          throw new Error(`Failed to get download URL: ${downloadResponse.status}`)
+        }
+        
+        const downloadData = await downloadResponse.json() as any
+        
+        if (!downloadData.success || !downloadData.realm.downloadUrl) {
+          throw new Error('Invalid download response from hub')
+        }
+        
+        spinner.text = 'Downloading realm archive...'
+        
+        // Download the realm archive from MinIO
+        const archiveResponse = await fetch(downloadData.realm.downloadUrl)
+        
+        if (!archiveResponse.ok) {
+          throw new Error(`Failed to download realm archive: ${archiveResponse.status}`)
+        }
+        
+        const archiveBuffer = Buffer.from(await archiveResponse.arrayBuffer())
+        
+        // Create temporary file for extraction
+        const tempArchivePath = path.join(process.cwd(), `temp-realm-${Date.now()}.tar.gz`)
+        fs.writeFileSync(tempArchivePath, archiveBuffer)
+        
+        spinner.text = 'Extracting realm files...'
+        
+        // Extract archive to project directory
+        const { execSync } = require('child_process')
+        execSync(`tar -xzf "${tempArchivePath}" -C "${resolvedProjectPath}" --strip-components=1`, { stdio: 'pipe' })
+        
+        // Clean up temporary archive
+        fs.unlinkSync(tempArchivePath)
+        
+        spinner.text = 'Customizing project...'
+        
+        // Update package.json with project name
+        const packageJsonPath = path.join(resolvedProjectPath, 'package.json')
+        if (fs.existsSync(packageJsonPath)) {
+          const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+          packageJson.name = projectName
+          packageJson.description = `${packageJson.description || 'A RealmKit project'} - Created from ${realmPath}`
+          fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
+        }
+        
+        // Update .env.example with project name
+        const envExamplePath = path.join(resolvedProjectPath, '.env.example')
+        if (fs.existsSync(envExamplePath)) {
+          let envContent = fs.readFileSync(envExamplePath, 'utf8')
+          envContent = envContent.replace(/My SaaS/g, projectName)
+          envContent = envContent.replace(/myapp/g, projectName.toLowerCase().replace(/[^a-z0-9]/g, ''))
+          fs.writeFileSync(envExamplePath, envContent)
+        }
+        
+      } catch (downloadError: any) {
+        console.log('')
+        console.log(chalk.yellow('⚠️  File download failed, creating basic project structure...'))
+        console.log(chalk.gray('Error:', downloadError.message))
+        
+        // Fallback to basic project creation
+        spinner.text = 'Creating project from realm template...'
+        
+        // Create a basic project structure based on the manifest
+        const packageJson: any = {
+          name: projectName,
+          version: '1.0.0',
+          description: `${manifest.description || 'A RealmKit project'} - Created from ${realmPath}`,
+          private: true,
+          scripts: {
+            dev: 'echo "Development server not yet configured"',
+            build: 'echo "Build not yet configured"',
+            start: 'echo "Start not yet configured"'
+          },
+          dependencies: {},
+          devDependencies: {}
+        }
+        
+        // Add tech stack based dependencies if available
+        if (manifest.techStack) {
+          manifest.techStack.forEach((tech: string) => {
+            if (tech.includes('Next.js')) {
+              packageJson.dependencies['next'] = '^14.0.0'
+              packageJson.dependencies['react'] = '^18.0.0'
+              packageJson.dependencies['react-dom'] = '^18.0.0'
+              packageJson.scripts.dev = 'next dev'
+              packageJson.scripts.build = 'next build'
+              packageJson.scripts.start = 'next start'
+            }
+            if (tech.includes('TypeScript')) {
+              packageJson.devDependencies['typescript'] = '^5.0.0'
+              packageJson.devDependencies['@types/node'] = '^20.0.0'
+              packageJson.devDependencies['@types/react'] = '^18.0.0'
+            }
+            if (tech.includes('Tailwind')) {
+              packageJson.devDependencies['tailwindcss'] = '^3.0.0'
+            }
+          })
+        }
+        
+        // Write package.json
+        fs.writeFileSync(
+          path.join(resolvedProjectPath, 'package.json'),
+          JSON.stringify(packageJson, null, 2)
+        )
+        
+        // Create README.md
+        const readmeContent = `# ${projectName}
+
+${manifest.description || 'A RealmKit project'}
+
+Created from realm: \`${realmPath}\`
+
+## Features
+
+${manifest.features?.map((f: any) => `- ${f.name}: ${f.description}`).join('\n') || 'No features listed'}
+
+## Tech Stack
+
+${manifest.techStack?.map((tech: string) => `- ${tech}`).join('\n') || 'No tech stack listed'}
+
+## Getting Started
+
+1. Install dependencies:
+   \`\`\`bash
+   npm install
+   \`\`\`
+
+2. Configure environment variables:
+   \`\`\`bash
+   cp .env.example .env.local
+   # Edit .env.local with your configuration
+   \`\`\`
+
+3. Start development server:
+   \`\`\`bash
+   npm run dev
+   \`\`\`
+
+## Environment Variables
+
+${manifest.variables?.map((v: any) => `- \`${v.name}\`: ${v.description}${v.required ? ' (required)' : ''}${v.defaultValue ? ` (default: ${v.defaultValue})` : ''}`).join('\n') || 'No variables documented'}
+
+## RealmKit Integration
+
+This project was created using RealmKit. The original realm manifest and AI context have been preserved for future reference.
+
+For more information about RealmKit, visit: https://realmkit.com
+`
+        
+        fs.writeFileSync(path.join(resolvedProjectPath, 'README.md'), readmeContent)
+        
+        // Create .env.example
+        const envExample = manifest.variables?.map((v: any) => 
+          `${v.name}=${v.defaultValue || ''} # ${v.description}`
+        ).join('\n') || '# No environment variables defined'
+        
+        fs.writeFileSync(path.join(resolvedProjectPath, '.env.example'), envExample)
+        
+        // Create realm manifest for reference
+        fs.writeFileSync(
+          path.join(resolvedProjectPath, 'realm.yml'),
+          `# Original realm manifest
+name: "${manifest.name}"
+version: "${manifest.version}"
+description: "${manifest.description}"
+source: "${realmPath}"
+createdAt: "${new Date().toISOString()}"
+
+# This file preserves the original realm configuration
+# for reference and future RealmKit operations
+`
+        )
+        
+        console.log('')
+        console.log(chalk.yellow('📝 Note: Used fallback project creation due to download error.'))
+        console.log(chalk.yellow('   Created basic project structure based on realm manifest.'))
+      }
+      
+    } else {
+      // Local realm - use existing project creator
+      const config = {
+        projectName,
+        realmPath: path.resolve(realmPath),
+        outputPath: resolvedProjectPath,
+        variables,
+        enabledFeatures
+      }
+      
+      const creator = new ProjectCreator(config)
+      
+      spinner.text = 'Setting up project structure...'
+      await creator.create()
+    }
     
     // Initialize git if requested
     if (options.git) {
