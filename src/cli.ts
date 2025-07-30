@@ -42,6 +42,7 @@ program
   .option('--no-git', 'skip git initialization')
   .option('--features <features>', 'comma-separated list of features to enable')
   .option('--no-<feature>', 'disable specific features (e.g., --no-payments)')
+  .option('--accept-terms', 'automatically accept download disclaimer (for CI/CD)')
   .action(createCommand)
 
 program

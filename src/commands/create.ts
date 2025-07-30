@@ -11,6 +11,7 @@ interface CreateOptions {
   install: boolean
   git: boolean
   features?: string
+  acceptTerms?: boolean
   [key: string]: any // For --no-<feature> options
 }
 
@@ -63,6 +64,39 @@ export async function createCommand(realmPath: string, projectName: string, outp
     // This looks like a namespace/realm format - fetch from hub
     isRemoteRealm = true
     console.log(chalk.blue('🌐 Fetching realm from RealmKit Hub...'))
+    
+    // Show disclaimer and get user consent (unless --accept-terms flag is used)
+    if (!options.acceptTerms) {
+      console.log('')
+      console.log(chalk.yellow('⚠️  IMPORTANT DISCLAIMER'))
+      console.log('')
+      console.log(chalk.gray('By downloading this realm, you acknowledge that RealmKit is not responsible'))
+      console.log(chalk.gray('for the downloaded content. You are solely responsible for security,'))
+      console.log(chalk.gray('legal compliance, and permissions.'))
+      console.log('')
+      
+      const { proceed } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'proceed',
+          message: 'Do you accept these terms and wish to proceed with the download?',
+          default: false
+        }
+      ])
+      
+      if (!proceed) {
+        console.log('')
+        console.log(chalk.red('❌ Download cancelled by user'))
+        console.log(chalk.gray('You can run this command again when ready to accept the terms.'))
+        console.log(chalk.gray('Or use --accept-terms flag to skip this prompt.'))
+        process.exit(0)
+      }
+      
+      console.log('')
+      console.log(chalk.green('✅ Terms accepted, proceeding with download...'))
+    } else {
+      console.log(chalk.gray('📋 Terms automatically accepted via --accept-terms flag'))
+    }
     
     try {
       // Make API call to hub to get realm data

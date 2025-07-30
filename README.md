@@ -463,6 +463,39 @@ realmkit:
   initialized: "2024-01-01T00:00:00.000Z"
 ```
 
+## 📋 Download Disclaimer
+
+### Interactive Disclaimer
+
+When downloading realms from a RealmKit Hub, the CLI will display a disclaimer and require user consent:
+
+```bash
+realmkit create realmkitai/saas-starter my-app
+
+⚠️  IMPORTANT DISCLAIMER
+
+By downloading this realm, you acknowledge that RealmKit is not responsible
+for the downloaded content. You are solely responsible for security,
+legal compliance, and permissions.
+
+? Do you accept these terms and wish to proceed with the download? (y/N)
+```
+
+### Automated Environments
+
+For CI/CD pipelines and automated scripts, use the `--accept-terms` flag:
+
+```bash
+# Skip disclaimer prompt for automation
+realmkit create realmkitai/saas-starter my-app --accept-terms
+
+# Example CI/CD usage
+docker run --rm -v $(pwd):/workspace \
+  realmkit-cli create realm-name project-name --accept-terms
+```
+
+**Security Note**: Only use `--accept-terms` when you trust the realm source and have reviewed the content policy.
+
 ## 🚦 Troubleshooting
 
 ### "Realm not found" Error
