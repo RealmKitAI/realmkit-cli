@@ -7,6 +7,8 @@ import { createCommand } from './commands/create'
 import { listCommand } from './commands/list'
 import { initCommand } from './commands/init'
 import { configCommand } from './commands/config'
+import { publishCommand } from './commands/publish'
+import { loginCommand, logoutCommand, whoamiCommand } from './commands/login'
 
 const program = new Command()
 
@@ -67,6 +69,33 @@ program
   .option('--list', 'list all configuration')
   .option('--reset', 'reset configuration to defaults')
   .action(configCommand)
+
+program
+  .command('publish')
+  .description('Publish the current directory as a realm')
+  .option('--github-url <url>', 'link to GitHub repository')
+  .option('--link-github', 'auto-detect GitHub URL from git remote')
+  .option('--private', 'publish as private realm')
+  .option('--name <name>', 'override realm name')
+  .option('--description <desc>', 'realm description')
+  .option('--version <version>', 'realm version')
+  .action(publishCommand)
+
+program
+  .command('login')
+  .description('Authenticate with RealmKit Hub')
+  .option('--token <token>', 'authenticate with an API token')
+  .action(loginCommand)
+
+program
+  .command('logout')
+  .description('Logout from RealmKit Hub')
+  .action(logoutCommand)
+
+program
+  .command('whoami')
+  .description('Display current authenticated user')
+  .action(whoamiCommand)
 
 // Handle unknown commands
 program.on('command:*', () => {

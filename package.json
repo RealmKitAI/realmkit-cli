@@ -21,6 +21,14 @@
   ],
   "author": "RealmKit Team",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RealmKitAI/realmkit-cli.git"
+  },
+  "homepage": "https://github.com/RealmKitAI/realmkit-cli#readme",
+  "bugs": {
+    "url": "https://github.com/RealmKitAI/realmkit-cli/issues"
+  },
   "dependencies": {
     "@types/node-fetch": "^2.6.12",
     "chalk": "^4.1.2",
