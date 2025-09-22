@@ -16,7 +16,7 @@ const program = new Command()
 program
   .name('realmkit')
   .description('RealmKit CLI - Extract and create realms from existing projects')
-  .version('0.1.0')
+  .version('0.2.0')
 
 // Global options
 program
