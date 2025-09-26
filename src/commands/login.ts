@@ -185,6 +185,12 @@ export async function loginCommand(options: LoginOptions) {
       // Wait for the token
       const { token, user } = await tokenPromise
       
+      // Close server immediately after receiving token
+      if (server) {
+        (server as http.Server).close()
+        server = null
+      }
+      
       spinner.succeed('Authentication successful!')
       
       // Save the token
@@ -204,7 +210,7 @@ export async function loginCommand(options: LoginOptions) {
       console.log(chalk.gray('  3. Run: realmkit login --token YOUR_TOKEN'))
       process.exit(1)
     } finally {
-      // Clean up the server
+      // Clean up the server (if not already closed)
       if (server) {
         (server as http.Server).close()
       }
