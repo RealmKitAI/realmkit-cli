@@ -8,9 +8,10 @@ interface ConfigOptions {
   reset?: boolean
 }
 
-interface Config {
+export interface Config {
   hubUrl?: string
   token?: string
+  username?: string
   defaultNamespace?: string
   timeout?: number
 }
